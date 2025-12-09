@@ -49,4 +49,5 @@ vite.config.js.timestamp*
 .vite/
 vite/dist/
 vite/.vite
+helm.tar
 

@@ -1,1 +1,0 @@
-{"Modules":[{"Key":"","Source":"","Dir":"."},{"Key":"k8s_control_plane","Source":"../../modules/proxmox-vm","Dir":"../../modules/proxmox-vm"},{"Key":"k8s_dev","Source":"../../modules/proxmox-vm","Dir":"../../modules/proxmox-vm"},{"Key":"k8s_worker_1","Source":"../../modules/proxmox-vm","Dir":"../../modules/proxmox-vm"}]}
