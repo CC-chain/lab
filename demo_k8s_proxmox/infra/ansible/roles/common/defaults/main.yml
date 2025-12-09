@@ -1,0 +1,4 @@
+common_timezone: "Europe/Istanbul"
+common_packages: []
+common_ssh_permit_root_login: "no"
+common_ssh_password_auth: "no"

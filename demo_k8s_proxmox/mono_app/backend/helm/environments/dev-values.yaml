@@ -1,0 +1,63 @@
+image:
+  repository: "docker.io/aarif0/demo-backend"
+  pullPolicy: IfNotPresent
+  tag: "90823c9e"
+config:
+  APP_NAME: "mono-app-backend"
+  secretsManager: false
+  parameterStore: false
+  region: ""
+vault:
+  enabled: true
+  clusterSecretStoreName: "vault-backend"
+  refreshInterval: "1m"
+  secrets:
+    - path: "dev/demo-backend"
+# resources:
+#  limits:
+#    cpu: 100m
+#    memory: 500Mi
+#  requests:
+#    cpu: 200m
+#    memory: 300Mi
+serviceAccount:
+  create: false
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "-1"
+#     argocd.argoproj.io/hook: PreSync
+#     eks.amazonaws.com/role-arn: ""
+livenessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 3
+  failureThreshold: 3
+readinessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 3
+  failureThreshold: 3
+  path: "/healthz"
+# service:
+#   type: ClusterIP
+#   port: 80
+#   targetPort: 8000
+ingress:
+  enabled: false
+#   className: "nginx"
+#   annotations:
+#     argocd.argoproj.io/sync-wave: ""
+#     nginx.ingress.kubernetes.io/proxy-body-size: 50m
+#   hosts:
+#     - host: 
+#       paths:
+#         - path: /
+#           pathType: "Prefix"
+#     - host: 
+#       paths:
+#         - path: /
+#           pathType: "Prefix"
+
+autoscaling:
+  enabled: false
+#   minReplicas: 2
+#   maxReplicas: 10
+#   targetCPUUtilizationPercentage: 80
+#   targetMemoryUtilizationPercentage: 80

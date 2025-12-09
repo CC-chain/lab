@@ -1,0 +1,66 @@
+image:
+  repository: ""
+  pullPolicy: IfNotPresent
+  tag: ""
+
+config:
+  APP_NAME: "mono-app-backend"
+  secretsManager: false
+  parameterStore: false
+  region: ""
+
+backend:
+  url: "http://backend-prod-mono-app-backend.backend-prod.svc.cluster.local:80/api/config"
+
+# resources:
+#   limits:
+#     cpu: 100m
+#     memory: 500Mi
+#   requests:
+#     cpu: 200m
+#     memory: 300Mi
+
+# serviceAccount:
+#   create: true
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "-1"
+#     argocd.argoproj.io/hook: PreSync
+#     eks.amazonaws.com/role-arn: ""
+
+# livenessProbe:
+#   initialDelaySeconds: 10
+#   periodSeconds: 3
+#   failureThreshold: 3
+# readinessProbe:
+#   initialDelaySeconds: 10
+#   periodSeconds: 3
+#   failureThreshold: 3
+#   path: "/health-checkz"
+
+# service:
+#   type: ClusterIP
+#   port: 80
+#   targetPort: 8000
+
+# ingress:
+#   enabled: true
+#   className: "nginx"
+#   annotations:
+#     argocd.argoproj.io/sync-wave: ""
+#     nginx.ingress.kubernetes.io/proxy-body-size: 50m
+#   hosts:
+#     - host: 
+#       paths:
+#         - path: /
+#           pathType: "Prefix"
+#     - host: 
+#       paths:
+#         - path: /
+#           pathType: "Prefix"
+
+# autoscaling:
+#   enabled: true
+#   minReplicas: 2
+#   maxReplicas: 10
+#   targetCPUUtilizationPercentage: 80
+#   targetMemoryUtilizationPercentage: 80

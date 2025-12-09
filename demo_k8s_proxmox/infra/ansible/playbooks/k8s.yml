@@ -1,0 +1,47 @@
+---
+- name: Provision Kubernetes Control Plane and Environment
+  hosts: control_plane
+  become: true
+  roles:
+    - role: common
+      tags: ["common", "k8s_all"]
+
+    - role: k8s_common
+      tags: ["k8s_common", "k8s_all"]
+
+    - role: k8s_install
+      tags: ["k8s_install", "k8s_all"]
+
+    - role: k8s_control_plane
+      tags: ["k8s_single", "k8s_all"]
+
+    - role: k8s_cni
+      tags: ["k8s_cni", "k8s_all"]
+
+    - role: k8s_argocd
+      tags: ['k8s_argocd', 'k8s_all']
+
+    - role: k8s_monitoring
+      tags: ['k8s_monitoring', 'k8s_all']
+
+    - role: k8s_secrets
+      tags: ['k8s_secrets', 'k8s_all']
+
+    - role: k8s_smoke
+      tags: ["k8s_smoke", "k8s_all"]
+
+- name: Provision worker nodes
+  hosts: workers
+  become: true
+  roles:
+    - role: common
+      tags: ['common', 'k8s_all']
+
+    - role: k8s_common
+      tags: ['k8s_common', 'k8s_all']
+
+    - role: k8s_install
+      tags: ['k8s_install', 'k8s_all']
+
+    - role: k8s_worker
+      tags: ['k8s_worker', 'k8s_all']

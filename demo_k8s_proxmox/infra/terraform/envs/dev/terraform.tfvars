@@ -1,0 +1,9 @@
+pm_api_url          = "https://proxmox.local:8006/api2/json"
+pm_api_token_id     = "terraform@pam!terraform1"
+pm_api_token_secret = "1a99a605-8a18-4062-898e-3337a37ba1d0"
+proxmox_node = "proxmox"                    
+vm_template  = "ubuntu-22-cloudinit"    
+vm_storage   = "local-lvm"
+vm_bridge    = "vmbr0"
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIJ6Kvk0p15ZzcWG4n17zlZZHiOYMXYXFhvWPH7pXrJYG gitlab test"
+vm_network_id = 0

@@ -1,0 +1,82 @@
+---
+- name: Ensure packages required for HTTPS apt repositories are installed
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - apt-transport-https
+    state: present
+    update_cache: true
+  become: true
+  tags: [k8s_install, k8s_all]
+
+- name: Ensure /etc/apt/keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  become: true
+  tags: [k8s_install, k8s_all]
+
+- name: Download Kubernetes apt repository GPG key
+  ansible.builtin.get_url:
+    url: "{{ k8s_install_repo_base_url }}/Release.key"
+    dest: /etc/apt/keyrings/kubernetes-apt-keyring.asc
+    mode: "0644"
+  become: true
+  tags: [k8s_install, k8s_all]
+
+- name: Convert Kubernetes apt key to GPG keyring
+  ansible.builtin.command: >
+    gpg --dearmor
+    -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+    /etc/apt/keyrings/kubernetes-apt-keyring.asc
+  args:
+    creates: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+  become: true
+  tags: [k8s_install, k8s_all]
+
+- name: Add Kubernetes apt repository
+  ansible.builtin.apt_repository:
+    repo: >
+      deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg]
+      {{ k8s_install_repo_base_url }} /
+    filename: "kubernetes"
+    state: present
+  become: true
+  tags: [k8s_install, k8s_all]
+
+- name: Update apt cache after adding Kubernetes repository
+  ansible.builtin.apt:
+    update_cache: true
+  become: true
+  tags: [k8s_install, k8s_all]
+
+- name: Install Kubernetes components (kubelet, kubeadm, kubectl)
+  ansible.builtin.apt:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present
+    update_cache: true
+  become: true
+  tags: [k8s_install, k8s_all]
+
+- name: Ensure kubelet service is enabled
+  ansible.builtin.systemd:
+    name: kubelet
+    enabled: true
+  become: true
+  tags: [k8s_install, k8s_all]
+
+
+- name: Ensure containerd is running
+  ansible.builtin.service:
+    name: containerd
+    state: started
+    enabled: true
+  become: true
+  tags: [k8s_install, k8s_all]

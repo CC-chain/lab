@@ -1,0 +1,138 @@
+---
+- name: Check if helm is already installed
+  ansible.builtin.command: helm version --short
+  register: k8s_common_helm_check
+  failed_when: false
+  changed_when: false
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Download Helm binary
+  ansible.builtin.get_url:
+    url: "https://get.helm.sh/helm-v3.16.2-linux-amd64.tar.gz"
+    dest: /tmp/helm-v3.16.2-linux-amd64.tar.gz
+    mode: "0644"
+  when:
+    - k8s_common_helm_check.rc != 0
+    - inventory_hostname in groups['control_plane']
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Extract Helm binary
+  ansible.builtin.unarchive:
+    src: /tmp/helm-v3.16.2-linux-amd64.tar.gz
+    dest: /tmp
+    remote_src: true
+  when:
+    - k8s_common_helm_check.rc != 0
+    - inventory_hostname in groups['control_plane']
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Install Helm to /usr/local/bin
+  ansible.builtin.copy:
+    src: /tmp/linux-amd64/helm
+    dest: /usr/local/bin/helm
+    mode: "0755"
+    owner: root
+    group: root
+    remote_src: true
+  when:
+    - k8s_common_helm_check.rc != 0
+    - inventory_hostname in groups['control_plane']
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Configure kernel modules for Kubernetes
+  ansible.builtin.copy:
+    dest: "{{ k8s_common_modules_file }}"
+    content: |
+      overlay
+      br_netfilter
+    owner: root
+    group: root
+    mode: "0644"
+  become: true
+  tags: [k8s_common, k8s_all]
+
+- name: Install containerd and preflight dependency packages
+  ansible.builtin.apt:
+    name:
+      - containerd
+      - conntrack
+    state: present
+    update_cache: true
+  become: true
+  tags: [k8s_common, k8s_all]
+
+- name: Ensure containerd config directory exists
+  ansible.builtin.file:
+    path: /etc/containerd
+    state: directory
+    mode: "0755"
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Check if containerd config.toml exists
+  ansible.builtin.stat:
+    path: /etc/containerd/config.toml
+  register: k8s_common_containerd_config
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Generate default containerd config if missing
+  ansible.builtin.command: containerd config default
+  register: k8s_common_containerd_default_config
+  when: not k8s_common_containerd_config.stat.exists
+  changed_when: true
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Write containerd config.toml when generated
+  ansible.builtin.copy:
+    dest: /etc/containerd/config.toml
+    content: "{{ k8s_common_containerd_default_config.stdout }}"
+    owner: root
+    group: root
+    mode: "0644"
+  when: not k8s_common_containerd_config.stat.exists
+  notify: Restart containerd
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Force SystemdCgroup = true in containerd config
+  ansible.builtin.replace:
+    path: /etc/containerd/config.toml
+    regexp: 'SystemdCgroup *= *.*'
+    replace: 'SystemdCgroup = true'
+  notify: Restart containerd
+  tags: ['k8s_common', 'k8s_all']
+
+- name: Configure sysctl for Kubernetes networking
+  ansible.builtin.copy:
+    dest: "{{ k8s_common_sysctl_file }}"
+    content: |
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+      net.ipv4.ip_forward                 = 1
+    owner: root
+    group: root
+    mode: "0644"
+  register: k8s_common_sysctl_conf
+  become: true
+  tags: [k8s_common, k8s_all]
+
+- name: Apply sysctl settings
+  ansible.builtin.command: sysctl --system
+  when: k8s_common_sysctl_conf.changed
+  changed_when: false
+  become: true
+  tags: [k8s_common, k8s_all]
+
+- name: Disable swap (runtime)
+  ansible.posix.mount:
+    name: swap
+    state: absent
+  when: ansible_swaptotal_mb | int > 0
+  become: true
+  tags: [k8s_common, k8s_all]
+
+- name: Disable swap in fstab
+  ansible.builtin.replace:
+    path: /etc/fstab
+    regexp: '^(\S+\s+\S+\s+swap\s+\S+.*)$'
+    replace: '# \1'
+  become: true
+  tags: [k8s_common, k8s_all]

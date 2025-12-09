@@ -1,0 +1,17 @@
+---
+- name: Reload sysctl
+  ansible.posix.sysctl:
+    reload: true
+  become: true
+
+- name: Restart containerd
+  ansible.builtin.service:
+    name: containerd
+    state: restarted
+    enabled: true
+
+- name: Restart kubelet
+  ansible.builtin.service:
+    name: kubelet
+    state: restarted
+    enabled: true

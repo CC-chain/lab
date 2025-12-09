@@ -1,0 +1,51 @@
+---
+- name: Download cilium-cli archive
+  ansible.builtin.get_url:
+    url: "https://github.com/cilium/cilium-cli/releases/latest/download/cilium-linux-amd64.tar.gz"
+    dest: "/tmp/cilium-cli.tar.gz"
+    mode: "0644"
+  become: true
+  tags: [k8s_cni, k8s_all]
+
+- name: Extract cilium binary
+  ansible.builtin.unarchive:
+    src: "/tmp/cilium-cli.tar.gz"
+    dest: "/usr/local/bin/"
+    remote_src: true
+  become: true
+  tags: [k8s_cni, k8s_all]
+
+- name: Ensure cilium binary is executable
+  ansible.builtin.file:
+    path: "/usr/local/bin/cilium"
+    mode: "0755"
+  become: true
+  tags: [k8s_cni, k8s_all]
+
+- name: Check if Cilium is already installed
+  ansible.builtin.command: cilium status --wait
+  register: k8s_cni_cilium_status
+  failed_when: false
+  changed_when: false
+  become: false
+  environment:
+    KUBECONFIG: "{{ k8s_kubeconfig_user | default('/home/ubuntu/.kube/config') }}"
+  tags: [k8s_cni, k8s_all]
+
+- name: Install Cilium
+  ansible.builtin.command: cilium install --wait
+  when: k8s_cni_cilium_status.rc != 0
+  register: cilium_install
+  become: false
+  environment:
+    KUBECONFIG: "{{ k8s_kubeconfig_user | default('/home/ubuntu/.kube/config') }}"
+  tags: [k8s_cni, k8s_all]
+
+- name: Check Cilium status
+  ansible.builtin.command: >
+    cilium status --wait
+  changed_when: false
+  become: false
+  environment:
+    KUBECONFIG: "{{ k8s_kubeconfig_user | default('/home/ubuntu/.kube/config') }}"
+  tags: [k8s_cni, k8s_all]

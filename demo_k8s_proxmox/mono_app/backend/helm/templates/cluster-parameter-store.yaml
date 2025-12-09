@@ -1,0 +1,21 @@
+{{- if and (.Values.config) (.Values.config.parameterStore) }}
+{{- if eq .Values.config.parameterStore true }}
+apiVersion: external-secrets.io/v1
+kind: ClusterSecretStore
+metadata:
+  name: {{ include "cluster-parameter-store" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+    argocd.argoproj.io/hook: PreSync
+spec:
+  provider:
+    aws:
+      service: ParameterStore
+      region: {{ .Values.config.region }}
+      auth:
+        jwt:
+          serviceAccountRef:
+            name: "external-secrets"
+            namespace: "external-secrets"
+{{- end }}
+{{- end }}

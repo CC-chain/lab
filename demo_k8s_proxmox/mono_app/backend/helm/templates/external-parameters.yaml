@@ -1,0 +1,21 @@
+{{- if and (.Values.config) (.Values.config.parameterStore) }}
+{{- if eq .Values.config.parameterStore true }}
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: {{ include "external-parameters-name" . }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+    argocd.argoproj.io/hook: PreSync
+spec:
+  refreshInterval: 1m
+  secretStoreRef:
+    name: {{ include "cluster-parameter-store" . }}
+    kind: ClusterSecretStore
+  target:
+    name: {{ include "external-parameters-name" . }}
+    creationPolicy: Owner
+  dataFrom:
+  {{- include "get_env_vars_from_parameter_store" . | nindent 2 }}
+{{- end }}
+{{- end }}

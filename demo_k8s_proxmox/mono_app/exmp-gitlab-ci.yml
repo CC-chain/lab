@@ -1,0 +1,141 @@
+stages:
+  - build
+  - update-helm
+  
+variables:
+  DOCKER_DRIVER: overlay2
+
+.set_deploy_env: &set_deploy_env |
+  if [[ "$CI_COMMIT_BRANCH" == "main" ]]; then
+    DEPLOY_ENV="prod"
+  elif [[ "$CI_COMMIT_BRANCH" == "preprod" ]]; then
+    DEPLOY_ENV="preprod"
+  else
+    DEPLOY_ENV="dev"
+  fi
+  echo "Using DEPLOY_ENV=$DEPLOY_ENV"
+  export DEPLOY_ENV
+
+# ===========================
+# TEMPLATES
+# ===========================
+
+.docker_build_template:
+  stage: build
+  image: docker:27
+  services:
+    - docker:27-dind
+  before_script:
+    - *set_deploy_env
+    - docker info
+    - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USER" --password-stdin
+  # script ve rules her serviste override edilecek
+
+.update_helm_tag_template:
+  stage: update-helm
+  image: alpine:3.20
+  before_script:
+    - *set_deploy_env
+    - apk add --no-cache git yq
+    - git config user.name "gitlab-ci"
+    - git config user.email "ci@example.com"
+    - git remote set-url origin "https://gitlab:${GIT_PUSH_TOKEN}@gitlab.com/${CI_PROJECT_PATH}.git"
+  # needs, script ve rules her serviste override edilecek
+
+# ===========================
+# BACKEND
+# ===========================
+
+build_backend:
+  extends: .docker_build_template
+  rules:
+    - changes:
+        - "backend/**"
+      when: on_success
+    - when: never
+  script:
+    - cd backend
+    - IMAGE_NAME="docker.io/$DOCKERHUB_USER/demo-backend"
+    - IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
+    - echo "Building $IMAGE_NAME:$IMAGE_TAG for env $DEPLOY_ENV"
+    - docker build -t "$IMAGE_NAME:$IMAGE_TAG" .
+    - docker push "$IMAGE_NAME:$IMAGE_TAG"
+
+update_backend_helm_tag:
+  extends: .update_helm_tag_template
+  needs:
+    - build_backend
+  rules:
+    - changes:
+        - "backend/**"
+      when: on_success
+    - when: never
+  script:
+    - BACKEND_VALUES_FILE="backend/helm/environments/${DEPLOY_ENV}-values.yaml"
+    - echo "Updating backend tag in $BACKEND_VALUES_FILE to $CI_COMMIT_SHORT_SHA"
+
+    - |
+      if [[ ! -f "$BACKEND_VALUES_FILE" ]]; then
+        echo "Backend values file not found: $BACKEND_VALUES_FILE";
+        exit 0;
+      fi
+
+    - yq -i ".image.tag = \"$CI_COMMIT_SHORT_SHA\"" "$BACKEND_VALUES_FILE"
+
+    - |
+      if git diff --quiet; then
+        echo "No changes in $BACKEND_VALUES_FILE, skipping commit.";
+      else
+        git add "$BACKEND_VALUES_FILE"
+        git commit -m "[skip ci] Update backend image tag for $DEPLOY_ENV ($CI_COMMIT_SHORT_SHA)" || echo "Nothing to commit"
+        git push origin HEAD:"$CI_COMMIT_BRANCH"
+      fi
+
+# ===========================
+# FRONTEND
+# ===========================
+
+build_frontend:
+  extends: .docker_build_template
+  rules:
+    - changes:
+        - "frontend/**"
+      when: on_success
+    - when: never
+  script:
+    - cd frontend
+    - IMAGE_NAME="docker.io/$DOCKERHUB_USER/demo-frontend"
+    - IMAGE_TAG="$CI_COMMIT_SHORT_SHA"
+    - echo "Building $IMAGE_NAME:$IMAGE_TAG for env $DEPLOY_ENV"
+    - docker build -t "$IMAGE_NAME:$IMAGE_TAG" .
+    - docker push "$IMAGE_NAME:$IMAGE_TAG"
+
+update_frontend_helm_tag:
+  extends: .update_helm_tag_template
+  needs:
+    - build_frontend
+  rules:
+    - changes:
+        - "frontend/**"
+      when: on_success
+    - when: never
+  script:
+    - FRONTEND_VALUES_FILE="frontend/helm/environments/${DEPLOY_ENV}-values.yaml"
+    - echo "Updating frontend tag in $FRONTEND_VALUES_FILE to $CI_COMMIT_SHORT_SHA"
+
+    - |
+      if [[ ! -f "$FRONTEND_VALUES_FILE" ]]; then
+        echo "Frontend values file not found: $FRONTEND_VALUES_FILE";
+        exit 0;
+      fi
+
+    - yq -i ".image.tag = \"$CI_COMMIT_SHORT_SHA\"" "$FRONTEND_VALUES_FILE"
+
+    - |
+      if git diff --quiet; then
+        echo "No changes in $FRONTEND_VALUES_FILE, skipping commit.";
+      else
+        git add "$FRONTEND_VALUES_FILE"
+        git commit -m "[skip ci] Update frontend image tag for $DEPLOY_ENV ($CI_COMMIT_SHORT_SHA)" || echo "Nothing to commit"
+        git push origin HEAD:"$CI_COMMIT_BRANCH"
+      fi

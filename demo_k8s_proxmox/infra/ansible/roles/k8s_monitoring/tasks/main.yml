@@ -1,0 +1,41 @@
+---
+- name: Ensure monitoring namespace exists
+  kubernetes.core.k8s:
+    api_version: v1
+    kind: Namespace
+    name: monitoring
+    state: present
+    kubeconfig: "{{ k8s_kubeconfig_user | default('/home/ubuntu/.kube/config') }}"
+  tags: ['k8s_monitoring', 'k8s_all']
+
+- name: Ensure prometheus-community Helm repo exists
+  ansible.builtin.command:
+    cmd: helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+  register: k8s_monitoring_prom_repo_add
+  failed_when: >
+    k8s_monitoring_prom_repo_add.rc != 0 and
+    ('exists' not in k8s_monitoring_prom_repo_add.stderr | lower)
+  changed_when: >
+    k8s_monitoring_prom_repo_add.rc == 0 and
+    ('has been added' in k8s_monitoring_prom_repo_add.stdout | lower)
+  tags: ['k8s_monitoring', 'k8s_all']
+
+- name: Update Helm repositories
+  ansible.builtin.command:
+    cmd: helm repo update
+  changed_when: false
+  tags: ['k8s_monitoring', 'k8s_all']
+
+- name: Install kube-prometheus-stack via Helm
+  kubernetes.core.helm:
+    name: kube-prometheus-stack
+    chart_ref: prometheus-community/kube-prometheus-stack
+    release_namespace: monitoring
+    create_namespace: false
+    state: present
+    values:
+      grafana:
+        adminUser: "{{ k8s_monitoring_grafana_admin_user }}"
+        adminPassword: "{{ k8s_monitoring_grafana_admin_password }}"
+    kubeconfig: "{{ k8s_kubeconfig_user | default('/home/ubuntu/.kube/config') }}"
+  tags: ['k8s_monitoring', 'k8s_all']

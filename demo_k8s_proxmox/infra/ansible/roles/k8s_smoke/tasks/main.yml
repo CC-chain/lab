@@ -1,0 +1,53 @@
+---
+
+- name: Set kubeconfig path fact
+  ansible.builtin.set_fact:
+    k8s_smoke_kubeconfig: "{{ k8s_single_kubeconfig_path | default('/home/ubuntu/.kube/config') }}"
+  tags: [k8s_smoke, k8s_all]
+
+- name: Wait for API server /healthz to be OK
+  ansible.builtin.command: >
+    kubectl get --raw=/healthz
+  environment:
+    KUBECONFIG: "{{ k8s_smoke_kubeconfig }}"
+  register: k8s_smoke_healthz
+  retries: 20
+  delay: 6
+  until: k8s_smoke_healthz.rc == 0 and 'ok' in k8s_smoke_healthz.stdout
+  changed_when: false
+  become: true
+  become_user: ubuntu
+  tags: [k8s_smoke, k8s_all]
+
+- name: Wait for kube-system pods to be Ready
+  ansible.builtin.command: >
+    kubectl get pods -n kube-system
+  environment:
+    KUBECONFIG: "{{ k8s_smoke_kubeconfig }}"
+  register: k8s_smoke_pods
+  retries: 30
+  delay: 10
+  until: >
+    k8s_smoke_pods.rc == 0 and
+    '0/' not in k8s_smoke_pods.stdout
+  changed_when: false
+  become: true
+  become_user: ubuntu
+  tags: [k8s_smoke, k8s_all]
+
+- name: Check node status is Ready
+  ansible.builtin.command: >
+    kubectl get nodes
+  environment:
+    KUBECONFIG: "{{ k8s_smoke_kubeconfig }}"
+  register: k8s_smoke_nodes
+  changed_when: false
+  become: true
+  become_user: ubuntu
+  tags: [k8s_smoke, k8s_all]
+
+- name: Fail if any node is not Ready
+  ansible.builtin.fail:
+    msg: "Some nodes are not Ready: {{ k8s_smoke_nodes.stdout }}"
+  when: "' Ready ' not in k8s_smoke_nodes.stdout"
+  tags: [k8s_smoke, k8s_all]
